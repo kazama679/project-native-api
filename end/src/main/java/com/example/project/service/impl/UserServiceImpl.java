@@ -62,9 +62,47 @@ public class UserServiceImpl implements UserService {
     public User updateProfile(int userId, UserUpdateRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("Không tìm thấy người dùng"));
-        user.setFullName(request.getFullName());
-        user.setBio(request.getBio());
-        user.setAvatarUrl(request.getAvatarUrl());
+        if (request.getFullName() != null) {
+            user.setFullName(request.getFullName());
+        }
+        if (request.getBio() != null) {
+            user.setBio(request.getBio());
+        }
+        if (request.getAvatarUrl() != null) {
+            user.setAvatarUrl(request.getAvatarUrl());
+        }
+        if (request.getWebsite() != null) {
+            user.setWebsite(request.getWebsite());
+        }
+        if (request.getPhoneNumber() != null) {
+            String newPhone = request.getPhoneNumber();
+            if (newPhone.isEmpty()) {
+                user.setPhoneNumber(null);
+            } else if (!newPhone.equals(user.getPhoneNumber())) {
+                if (userRepository.existsByPhoneNumber(newPhone)) {
+                    throw new RuntimeException("Số điện thoại đã được sử dụng");
+                }
+                user.setPhoneNumber(newPhone);
+            }
+        }
+        if (request.getEmail() != null) {
+            String newEmail = request.getEmail();
+            if (!newEmail.equalsIgnoreCase(user.getEmail())) {
+                if (userRepository.existsByEmail(newEmail)) {
+                    throw new RuntimeException("Email đã được sử dụng");
+                }
+                user.setEmail(newEmail);
+            }
+        }
+        if (request.getUsername() != null) {
+            String newUsername = request.getUsername();
+            if (!newUsername.equals(user.getUsername())) {
+                if (userRepository.existsByUsername(newUsername)) {
+                    throw new RuntimeException("Tên đăng nhập đã tồn tại");
+                }
+                user.setUsername(newUsername);
+            }
+        }
         return userRepository.save(user);
     }
 }

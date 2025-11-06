@@ -1,24 +1,69 @@
-import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { router } from 'expo-router';
+import { login as loginApi } from '../../services/auth';
 
 export default function LoginScreen() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const onSubmit = async () => {
+    if (!username || !password) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập tên đăng nhập và mật khẩu');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await loginApi({ username, password });
+      console.log('Login response:', JSON.stringify(res, null, 2));
+      
+      // Kiểm tra nhiều cách response có thể trả về
+      // Backend trả về "response" thay vì "data"
+      const token = res?.response?.token || res?.data?.token || res?.token || res?.data?.data?.token;
+      
+      if (token) {
+        router.replace('/');
+      } else {
+        console.error('Token không tìm thấy trong response:', res);
+        Alert.alert('Lỗi', `Không nhận được token. Response: ${JSON.stringify(res)}`);
+      }
+    } catch (e: any) {
+      console.error('Login error:', e);
+      Alert.alert('Đăng nhập thất bại', e?.message || 'Vui lòng thử lại');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Logo Instagram */}
       <Text style={styles.logo}>Instagram</Text>
 
-      {/* Ảnh đại diện người dùng */}
-      <Image
-        source={{ uri: 'https://i.imgur.com/2nCt3Sbl.jpg' }} // thay bằng ảnh thật nếu có
-        style={styles.avatar}
+      {/* Ô nhập Username */}
+      <TextInput
+        style={styles.input}
+        placeholder="Username"
+        placeholderTextColor="#999"
+        value={username}
+        onChangeText={setUsername}
+        autoCapitalize="none"
       />
 
-      {/* Tên người dùng */}
-      <Text style={styles.username}>jacob_w</Text>
+      {/* Ô nhập Password */}
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        placeholderTextColor="#999"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
 
       {/* Nút đăng nhập */}
-      <TouchableOpacity style={styles.loginButton}>
-        <Text style={styles.loginText}>Log in</Text>
+      <TouchableOpacity style={styles.loginButton} onPress={onSubmit} disabled={submitting}>
+        {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.loginText}>Log in</Text>}
       </TouchableOpacity>
 
       {/* Đổi tài khoản */}
@@ -29,7 +74,7 @@ export default function LoginScreen() {
       {/* Dòng tạo tài khoản */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>Don’t have an account? </Text>
-        <Text style={styles.signUp}>Sign up.</Text>
+        <Text style={styles.signUp} onPress={() => router.replace('/auth/register')}>Sign up.</Text>
       </View>
     </View>
   );
@@ -49,16 +94,15 @@ const styles = StyleSheet.create({
     fontFamily: 'Billabong', // font giống Instagram (có thể cần custom font)
     marginBottom: 40,
   },
-  avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    marginBottom: 15,
-  },
-  username: {
-    fontSize: 16,
-    color: '#000',
-    marginBottom: 25,
+  input: {
+    width: '90%',
+    height: 44,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    backgroundColor: '#fafafa',
+    paddingHorizontal: 12,
+    marginBottom: 12,
   },
   loginButton: {
     backgroundColor: '#3797EF',

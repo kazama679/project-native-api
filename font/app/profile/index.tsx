@@ -1,12 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { FlatList, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { getProfile, User } from '../../services/user';
 import ProfileMenu from './profileMenu';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const [menuVisible, setMenuVisible] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const posts = [
     { id: 1, uri: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
     { id: 2, uri: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
@@ -23,11 +26,46 @@ export default function ProfileScreen() {
     { id: 4, title: 'Design', uri: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
   ];
 
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      const res = await getProfile();
+      if (res?.data) {
+        setUser(res.data);
+      }
+    } catch (e: any) {
+      console.error('Error loading profile:', e);
+      Alert.alert('Lỗi', e?.message || 'Không thể tải thông tin cá nhân');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Không tìm thấy thông tin người dùng</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       {/* Header */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 20 }}>
-        <Text style={{ fontWeight: 'bold', fontSize: 18 }}>s.khasanov_</Text>
+        <Text style={{ fontWeight: 'bold', fontSize: 18 }}>{user.username}</Text>
         <TouchableOpacity onPress={() => setMenuVisible(true)}>
           <Ionicons name="menu-outline" size={28} />
         </TouchableOpacity>
@@ -36,20 +74,22 @@ export default function ProfileScreen() {
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', padding: 20 }}>
         <Image
-          source={{ uri: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' }}
+          source={{ 
+            uri: user.avatarUrl || 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' 
+          }}
           style={{ width: 80, height: 80, borderRadius: 40 }}
         />
         <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-around' }}>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>54</Text>
+            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>0</Text>
             <Text>Posts</Text>
           </View>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>834</Text>
+            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>0</Text>
             <Text>Followers</Text>
           </View>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>162</Text>
+            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>0</Text>
             <Text>Following</Text>
           </View>
         </View>
@@ -57,9 +97,9 @@ export default function ProfileScreen() {
 
       {/* User Info */}
       <View style={{ paddingHorizontal: 20 }}>
-        <Text style={{ fontWeight: 'bold' }}>Jacob West</Text>
-        <Text>Digital goodies designer @pixsellz</Text>
-        <Text>Everything is designed.</Text>
+        <Text style={{ fontWeight: 'bold' }}>{user.fullName || user.username}</Text>
+        {user.bio && <Text>{user.bio}</Text>}
+        {user.website && <Text style={{ color: '#3797EF' }}>{user.website}</Text>}
 
         <TouchableOpacity
           style={{
@@ -72,7 +112,7 @@ export default function ProfileScreen() {
           }}
           onPress={() => router.push('/profile/edit')}
         >
-          <Text>Edit Profile</Text>
+          <Text>Chỉnh sửa trang cá nhân</Text>
         </TouchableOpacity>
       </View>
 

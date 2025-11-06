@@ -1,29 +1,80 @@
-import { FontAwesome } from '@expo/vector-icons'; // nếu dùng Expo
+import { FontAwesome } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
+import { register as registerApi } from '../../services/auth';
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const onSubmit = async () => {
+    if (!username || !password) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập đầy đủ thông tin');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Email không hợp lệ', 'Vui lòng nhập đúng định dạng email');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await registerApi({ username, password, email, fullName });
+      Alert.alert('Thành công', res.message || 'Đăng ký tài khoản thành công', [
+        { text: 'OK', onPress: () => router.replace('/auth/login') }
+      ]);
+    } catch (e: any) {
+      Alert.alert('Lỗi', e?.message || 'Đăng ký thất bại');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
       {/* Logo Instagram */}
       <Text style={styles.logo}>Instagram</Text>
 
-      {/* Ô nhập Username */}
+      {/* Ô nhập Username */
+      }
       <TextInput
         style={styles.input}
-        placeholder="Phone number, username, or email"
+        placeholder="Username"
         placeholderTextColor="#999"
         value={username}
         onChangeText={setUsername}
+      />
+
+      {/* Ô nhập Email */}
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        placeholderTextColor="#999"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        value={email}
+        onChangeText={setEmail}
+      />
+
+      {/* Ô nhập Họ tên */}
+      <TextInput
+        style={styles.input}
+        placeholder="Full name"
+        placeholderTextColor="#999"
+        value={fullName}
+        onChangeText={setFullName}
       />
 
       {/* Ô nhập Password */}
@@ -41,9 +92,9 @@ export default function RegisterScreen() {
         <Text style={styles.forgotText}>Forgot password?</Text>
       </TouchableOpacity>
 
-      {/* Nút đăng nhập */}
-      <TouchableOpacity style={styles.loginButton}>
-        <Text style={styles.loginText}>Log in</Text>
+      {/* Nút đăng ký */}
+      <TouchableOpacity style={styles.loginButton} onPress={onSubmit} disabled={submitting}>
+        {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.loginText}>Sign up</Text>}
       </TouchableOpacity>
 
       {/* Nút đăng nhập bằng Facebook */}
@@ -59,10 +110,10 @@ export default function RegisterScreen() {
         <View style={styles.line} />
       </View>
 
-      {/* Footer: tạo tài khoản */}
+      {/* Footer: đã có tài khoản */}
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Don’t have an account? </Text>
-        <Text style={styles.signUp}>Sign up.</Text>
+        <Text style={styles.footerText}>Already have an account? </Text>
+        <Text style={styles.signUp} onPress={() => router.replace('/auth/login')}>Log in.</Text>
       </View>
 
       {/* Dòng nhỏ cuối */}

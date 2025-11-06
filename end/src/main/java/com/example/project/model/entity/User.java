@@ -29,6 +29,7 @@ public class User {
     private String fullName;
     private String bio;
     private String avatarUrl;
+    private String website;
 
     private Boolean status = true;
 }

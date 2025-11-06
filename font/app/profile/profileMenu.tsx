@@ -1,4 +1,5 @@
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { Animated, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -6,7 +7,7 @@ const { width } = Dimensions.get('window');
 
 export default function ProfileMenu({ visible, onClose }) {
   const slideAnim = React.useRef(new Animated.Value(width)).current;
-
+const router = useRouter();
   React.useEffect(() => {
     if (visible) {
       Animated.timing(slideAnim, {
@@ -39,14 +40,28 @@ export default function ProfileMenu({ visible, onClose }) {
               { icon: 'analytics-outline', label: 'Your Activity' },
               { icon: 'qr-code-outline', label: 'Nametag' },
               { icon: 'bookmark-outline', label: 'Saved' },
-              { icon: 'people-outline', label: 'Close Friends' },
-              { icon: 'person-add-outline', label: 'Discover People' },
             ].map((item, index) => (
-              <TouchableOpacity key={index} style={styles.menuItem}>
+              <TouchableOpacity key={index} style={styles.menuItem} >
                 <Ionicons name={item.icon} size={22} color="#000" />
                 <Text style={styles.menuText}>{item.label}</Text>
               </TouchableOpacity>
             ))}
+            <TouchableOpacity style={styles.menuItem} onPress={() => {
+                onClose();
+                setTimeout(() => router.push('/profile/closeFriends'), 200);
+              }}
+              >
+                <Ionicons name="people-outline" size={22} color="#000" />
+                <Text style={styles.menuText}>Close Friends</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={() => {
+                onClose();
+                setTimeout(() => router.push('/profile/discoverPeople'), 200);
+              }}
+              >
+                <Ionicons name="person-add-outline" size={22} color="#000" />
+                <Text style={styles.menuText}>Discover People</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem}>
               <FontAwesome name="facebook-square" size={22} color="#1877F2" />

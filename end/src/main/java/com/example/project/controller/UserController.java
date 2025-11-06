@@ -8,6 +8,7 @@ import com.example.project.model.dto.response.LoginResponse;
 import com.example.project.model.entity.User;
 import com.example.project.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -48,6 +49,25 @@ public class UserController {
             @RequestBody UserUpdateRequest request
     ) {
         User updated = userService.updateProfile(userId, request);
+        return ResponseEntity.ok(
+                new APIResponse<>("Cập nhật thông tin cá nhân thành công", updated, true, 200)
+        );
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<APIResponse<User>> getMe(@AuthenticationPrincipal User currentUser) {
+        User user = userService.getProfile(currentUser.getId());
+        return ResponseEntity.ok(
+                new APIResponse<>("Lấy thông tin tài khoản thành công", user, true, 200)
+        );
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<APIResponse<User>> updateMe(
+            @AuthenticationPrincipal User currentUser,
+            @RequestBody UserUpdateRequest request
+    ) {
+        User updated = userService.updateProfile(currentUser.getId(), request);
         return ResponseEntity.ok(
                 new APIResponse<>("Cập nhật thông tin cá nhân thành công", updated, true, 200)
         );
