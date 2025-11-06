@@ -18,11 +18,11 @@ public class Friendship {
 
     @ManyToOne
     @JoinColumn(name = "requester_id", nullable = false)
-    private User requester;
+    private User requester;  // người yêu cầu
 
     @ManyToOne
     @JoinColumn(name = "addressee_id", nullable = false)
-    private User addressee;
+    private User addressee;  // người nhận
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
