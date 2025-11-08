@@ -1,11 +1,52 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
-import React from 'react'
-import { ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { ImageBackground, StyleSheet, Text, TouchableOpacity, View, Alert, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function Post() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  const handleUp = async () => {
+    try {
+      setLoading(true);
+      
+      // Request permissions
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Cần quyền truy cập', 'Ứng dụng cần quyền truy cập thư viện ảnh để chọn ảnh.');
+          return;
+        }
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const imageUri = result.assets[0].uri;
+        // Navigate to titlePost with imageUri
+        router.push({
+          pathname: '/post/titlePost',
+          params: { imageUri },
+        });
+      }
+    } catch (error: any) {
+      console.error('Error picking image:', error);
+      Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <ImageBackground
-      source={{ uri: 'https://images.unsplash.com/photo-1501004318641-b39e6451bec6' }}
+      source={{ uri: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' }}
       style={styles.container}
     >
       {/* khung overlay camera */}
@@ -15,8 +56,12 @@ export default function Post() {
         <View style={styles.bottomContainer}>
 
           {/* icon bên trái: gallery */}
-          <TouchableOpacity>
-            <Ionicons name="images-outline" size={28} color="#fff" />
+          <TouchableOpacity onPress={handleUp} disabled={loading}>
+            {loading ? (
+              <Text style={{ color: '#fff', fontSize: 20 }}>...</Text>
+            ) : (
+              <Ionicons name="images-outline" size={28} color="#fff" />
+            )}
           </TouchableOpacity>
 
           {/* nút chụp ảnh */}

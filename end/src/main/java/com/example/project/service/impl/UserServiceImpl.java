@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.NoSuchElementException;
 
 @Service
@@ -104,5 +105,19 @@ public class UserServiceImpl implements UserService {
             }
         }
         return userRepository.save(user);
+    }
+
+    @Override
+    public User searchByPhoneNumber(String phoneNumber) {
+        return userRepository.findByPhoneNumber(phoneNumber)
+                .orElseThrow(() -> new NoSuchElementException("Không tìm thấy người dùng với số điện thoại: " + phoneNumber));
+    }
+
+    @Override
+    public List<User> searchByUsernameOrFullName(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return List.of();
+        }
+        return userRepository.searchByUsernameOrFullName(keyword.trim());
     }
 }

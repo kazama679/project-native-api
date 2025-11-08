@@ -40,3 +40,19 @@ export async function updateProfile(payload: UserUpdateRequest): Promise<any> {
   return res;
 }
 
+export async function getUserById(userId: number): Promise<ApiResponse<User>> {
+  const res = await api.get(`/api/v1/users/${userId}`) as any;
+  if (res?.response && !res?.data) {
+    res.data = res.response;
+  }
+  return res;
+}
+
+export async function searchUsers(keyword: string): Promise<ApiResponse<User[]>> {
+  const res = await api.get(`/api/v1/users/search?keyword=${encodeURIComponent(keyword)}`) as any;
+  if (res?.response && !res?.data) {
+    res.data = res.response;
+  }
+  return res;
+}
+

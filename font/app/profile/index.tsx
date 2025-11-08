@@ -1,23 +1,26 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
+import React, { useEffect, useState, useCallback } from 'react';
+import { ActivityIndicator, Alert, Dimensions, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { getProfile, User } from '../../services/user';
+import { getFollowers, getFollowing } from '../../services/friendship';
+import { getPostsByUserId, Post } from '../../services/post';
 import ProfileMenu from './profileMenu';
+
+const numColumns = 3;
+const screenWidth = Dimensions.get('window').width;
+const imageSize = screenWidth / numColumns;
 
 export default function ProfileScreen() {
   const router = useRouter();
   const [menuVisible, setMenuVisible] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [followers, setFollowers] = useState<User[]>([]);
+  const [following, setFollowing] = useState<User[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const posts = [
-    { id: 1, uri: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-    { id: 2, uri: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-    { id: 3, uri: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-    { id: 4, uri: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-    { id: 5, uri: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-    { id: 6, uri: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-  ];
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const highlights = [
     { id: 1, title: 'New', uri: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
@@ -29,6 +32,23 @@ export default function ProfileScreen() {
   useEffect(() => {
     loadProfile();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      loadFollowData();
+      loadUserPosts();
+    }
+  }, [user]);
+
+  // Reload posts when screen comes into focus (e.g., after creating a new post)
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) {
+        loadUserPosts();
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id])
+  );
 
   const loadProfile = async () => {
     try {
@@ -43,6 +63,58 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadFollowData = async () => {
+    try {
+      const [followersRes, followingRes] = await Promise.all([getFollowers(), getFollowing()]);
+      if (followersRes?.data) {
+        setFollowers(followersRes.data);
+      }
+      if (followingRes?.data) {
+        setFollowing(followingRes.data);
+      }
+    } catch (e) {
+      console.error('Error loading follow data:', e);
+    }
+  };
+
+  const loadUserPosts = async () => {
+    if (!user?.id) {
+      console.log('No user ID available');
+      return;
+    }
+    
+    try {
+      setLoadingPosts(true);
+      console.log('Loading posts for user ID:', user.id);
+      const res = await getPostsByUserId(user.id);
+      console.log('Posts API response:', JSON.stringify(res, null, 2));
+      // Handle both response.data and response.response (backend format)
+      const postsData = (res as any)?.data || (res as any)?.response;
+      if (postsData) {
+        console.log('Posts data:', postsData);
+        const postsArray = Array.isArray(postsData) ? postsData : [];
+        console.log('Number of posts:', postsArray.length);
+        setPosts(postsArray);
+      } else {
+        console.log('No data in response. Full response:', res);
+        setPosts([]);
+      }
+    } catch (e: any) {
+      console.error('Error loading user posts:', e);
+      console.error('Error details:', e?.message, e?.status, e?.data);
+      setPosts([]);
+    } finally {
+      setLoadingPosts(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadUserPosts();
+    await loadFollowData();
   };
 
   if (loading) {
@@ -70,7 +142,12 @@ export default function ProfileScreen() {
           <Ionicons name="menu-outline" size={28} />
         </TouchableOpacity>
       </View>
-    <ScrollView style={{ flex: 1, backgroundColor: '#fff' }}>
+    <ScrollView 
+      style={{ flex: 1, backgroundColor: '#fff' }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', padding: 20 }}>
         <Image
@@ -81,17 +158,17 @@ export default function ProfileScreen() {
         />
         <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-around' }}>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>0</Text>
+            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>{posts.length}</Text>
             <Text>Posts</Text>
           </View>
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>0</Text>
+          <TouchableOpacity style={{ alignItems: 'center' }} onPress={() => router.push('/profile/followers')}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>{followers.length}</Text>
             <Text>Followers</Text>
-          </View>
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>0</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={{ alignItems: 'center' }} onPress={() => router.push('/profile/following')}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>{following.length}</Text>
             <Text>Following</Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -130,24 +207,47 @@ export default function ProfileScreen() {
       </ScrollView>
 
       {/* Tabs */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-around', borderTopWidth: 0.5, borderColor: '#ddd' }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-around', borderTopWidth: 0.5, borderColor: '#ddd', paddingVertical: 10 }}>
         <Ionicons name="grid-outline" size={28} />
         <Ionicons name="person-outline" size={28} />
       </View>
 
       {/* Grid Posts */}
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => item.id.toString()}
-        numColumns={3}
-        renderItem={({ item }) => (
-          <Image
-            source={{ uri: item.uri }}
-            style={{ width: '33%', height: 120 }}
-            resizeMode="cover"
-          />
-        )}
-      />
+      {loadingPosts ? (
+        <View style={{ padding: 20, alignItems: 'center' }}>
+          <ActivityIndicator size="small" />
+        </View>
+      ) : posts.length > 0 ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {posts.map((item) => {
+            const firstMedia = item.mediaItems && item.mediaItems.length > 0 ? item.mediaItems[0] : null;
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={{ width: imageSize, height: imageSize }}
+                onPress={() => router.push({ pathname: '/post/postDetail', params: { postId: item.id.toString() } })}
+              >
+                {firstMedia ? (
+                  <Image
+                    source={{ uri: firstMedia.mediaUrl }}
+                    style={{ width: imageSize, height: imageSize }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={{ width: imageSize, height: imageSize, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' }}>
+                    <Ionicons name="image-outline" size={30} color="#ccc" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ) : (
+        <View style={{ padding: 40, alignItems: 'center' }}>
+          <Ionicons name="camera-outline" size={50} color="#ccc" />
+          <Text style={{ marginTop: 10, color: '#999' }}>Chưa có bài viết nào</Text>
+        </View>
+      )}
     </ScrollView>
     <ProfileMenu visible={menuVisible} onClose={() => setMenuVisible(false)} />
     </View>

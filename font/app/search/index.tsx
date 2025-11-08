@@ -1,15 +1,17 @@
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-    Dimensions,
-    FlatList,
-    Image,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { searchUsers, User } from '../../services/user';
 
 const reelsData = [
   { id: '1', thumbnail: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg', views: '3.9 triệu' },
@@ -27,28 +29,98 @@ const numColumns = 3;
 const screenWidth = Dimensions.get('window').width;
 const itemSize = screenWidth / numColumns;
 
-const DATA = [
-  { id: '1', username: 'aka__buns', name: 'Bấu', avatar: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-  { id: '2', username: 'b.fenle', name: 'FEN - LÊ', avatar: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-  { id: '3', username: 'bentopan_2.8', name: 'bảnh', avatar: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-  { id: '4', username: '_prv.cbong', name: 'Cỏ aka__buns theo dõi', avatar: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-  { id: '5', username: 'copehayzoi', name: 'Bích Hạnh', avatar: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-];
-
 const TABS = ['Tài khoản', 'Reels', 'Âm thanh', 'Thẻ'];
 
 export default function SearchAccountScreen() {
   const [selectedTab, setSelectedTab] = useState('Tài khoản');
-  
-    const router = useRouter();
+  const [searchKeyword, setSearchKeyword] = useState('quang');
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const router = useRouter();
+
+  const handleSearch = useCallback(async (keyword: string) => {
+    if (!keyword.trim()) {
+      setSearchResults([]);
+      setHasSearched(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setHasSearched(true);
+      const response = await searchUsers(keyword.trim());
+      if (response.success && response.data) {
+        setSearchResults(response.data);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (error: any) {
+      console.error('Search error:', error);
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      handleSearch(searchKeyword);
+    }, 500); // Debounce 500ms
+    console.log(searchKeyword);
+    
+    return () => clearTimeout(timer);
+  }, [searchKeyword, handleSearch]);
+
+  useEffect(() => {
+    handleSearch('quang');
+  }, [handleSearch]);
+
+  const handleUserPress = (user: User) => {
+    router.push({
+      pathname: '/search/otherProfile',
+      params: { userId: user.id.toString() },
+    });
+  };
+
+  const renderUserItem = ({ item }: { item: User }) => (
+    <TouchableOpacity
+      style={styles.itemContainer}
+      onPress={() => handleUserPress(item)}
+    >
+      <Image
+        source={{
+          uri: item.avatarUrl || 'https://via.placeholder.com/45',
+        }}
+        style={styles.avatar}
+      />
+      <View style={styles.textContainer}>
+        <Text style={styles.username}>{item.username}</Text>
+        {item.fullName && <Text style={styles.name}>{item.fullName}</Text>}
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
       {/* Thanh tìm kiếm */}
-      <TextInput
-        placeholder="Tìm kiếm"
-        placeholderTextColor="#888"
-        style={styles.searchBar}
-      />
+      <View style={styles.searchContainer}>
+        <TextInput
+          placeholder="Tìm kiếm"
+          placeholderTextColor="#888"
+          style={styles.searchBar}
+          value={searchKeyword}
+          onChangeText={setSearchKeyword}
+          autoFocus
+        />
+        {loading && (
+          <ActivityIndicator
+            size="small"
+            color="#9333ff"
+            style={styles.loader}
+          />
+        )}
+      </View>
 
       {/* Thanh điều hướng ngang */}
       <View style={styles.tabContainer}>
@@ -72,19 +144,40 @@ export default function SearchAccountScreen() {
       </View>
 
       {selectedTab === 'Tài khoản' && (
-        <FlatList
-          data={DATA}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.itemContainer} onPress={() => router.push('/search/otherProfile')}>
-              <Image source={{ uri: item.avatar }} style={styles.avatar} />
-              <View style={styles.textContainer}>
-                <Text style={styles.username}>{item.username}</Text>
-                <Text style={styles.name}>{item.name}</Text>
+        <>
+          {hasSearched ? (
+            loading ? (
+              <View style={styles.centerContainer}>
+                <ActivityIndicator size="large" color="#9333ff" />
+                <Text style={styles.loadingText}>Đang tìm kiếm...</Text>
               </View>
-            </TouchableOpacity>
+            ) : searchResults.length > 0 ? (
+              <FlatList
+                data={searchResults}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={renderUserItem}
+                ListHeaderComponent={
+                  <Text style={styles.resultsHeader}>
+                    Tìm thấy {searchResults.length} kết quả
+                  </Text>
+                }
+              />
+            ) : (
+              <View style={styles.centerContainer}>
+                <Text style={styles.emptyText}>Không tìm thấy</Text>
+                <Text style={styles.emptySubtext}>
+                  Không có người dùng nào khớp với "{searchKeyword}"
+                </Text>
+              </View>
+            )
+          ) : (
+            <View style={styles.centerContainer}>
+              <Text style={styles.placeholderText}>
+                Nhập tên hoặc username để tìm kiếm
+              </Text>
+            </View>
           )}
-        />
+        </>
       )}
 
       {selectedTab === 'Reels' && (
@@ -114,13 +207,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingTop: 30,
   },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 12,
+    marginBottom: 8,
+  },
   searchBar: {
+    flex: 1,
     height: 40,
     backgroundColor: '#f2f2f2',
     borderRadius: 10,
     paddingHorizontal: 12,
-    marginHorizontal: 12,
-    marginBottom: 8,
+  },
+  loader: {
+    marginLeft: 8,
   },
   tabContainer: {
     flexDirection: 'row',

@@ -72,4 +72,28 @@ public class UserController {
                 new APIResponse<>("Cập nhật thông tin cá nhân thành công", updated, true, 200)
         );
     }
+
+    @GetMapping("/search/phone")
+    public ResponseEntity<APIResponse<User>> searchByPhoneNumber(@RequestParam String phoneNumber) {
+        User user = userService.searchByPhoneNumber(phoneNumber);
+        return ResponseEntity.ok(
+                new APIResponse<>("Tìm thấy người dùng", user, true, 200)
+        );
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<APIResponse<java.util.List<User>>> searchUsers(
+            @RequestParam String keyword,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        java.util.List<User> users = userService.searchByUsernameOrFullName(keyword);
+        if (currentUser != null) {
+            users = users.stream()
+                    .filter(u -> u.getId() != currentUser.getId())
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        return ResponseEntity.ok(
+                new APIResponse<>("Tìm kiếm thành công", users, true, 200)
+        );
+    }
 }

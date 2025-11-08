@@ -1,10 +1,14 @@
+import { getFeedPosts, Post, ReactionType, reactToPost, removeReaction } from '@/services/post';
 import { Feather, FontAwesome } from '@expo/vector-icons';
-import React from 'react';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Image,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View
 } from 'react-native';
 
@@ -15,19 +19,62 @@ const stories = [
   { id: '4', name: 'kieron_d', image: 'https://i.imgur.com/jNNT4LE.jpg' },
 ];
 
-const posts = [
-  {
-    id: '1',
-    user: 'joshua_l',
-    location: 'Tokyo, Japan',
-    image: 'https://i.imgur.com/6L89SxQ.jpg',
-    likes: 44686,
-    caption:
-      'The game in Japan was amazing and I want to share some photos',
-  },
-];
-
 export default function HomeScreen() {
+  const router = useRouter();
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [reactingPostId, setReactingPostId] = useState<number | null>(null);
+
+  useEffect(() => {
+    loadFeed();
+  }, []);
+
+  const loadFeed = async () => {
+    try {
+      setLoading(true);
+      const res = await getFeedPosts();
+      if (res?.data) {
+        setPosts(res.data);
+      }
+    } catch (e) {
+      console.error('Error loading feed:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReaction = async (postId: number, currentReaction?: { id: number; reactionType: ReactionType }) => {
+    if (reactingPostId === postId) return;
+    
+    try {
+      setReactingPostId(postId);
+      if (currentReaction) {
+        // Remove reaction
+        await removeReaction(postId);
+      } else {
+        // Add like reaction
+        await reactToPost(postId, { reactionType: 'LIKE' });
+      }
+      // Reload feed to get updated data
+      await loadFeed();
+    } catch (e) {
+      console.error('Error reacting to post:', e);
+    } finally {
+      setReactingPostId(null);
+    }
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return `${diffInSeconds} giây trước`;
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} phút trước`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} giờ trước`;
+    return `${Math.floor(diffInSeconds / 86400)} ngày trước`;
+  };
+
   const renderStory = ({ item }: any) => (
     <View style={styles.storyItem}>
       <View style={styles.storyBorder}>
@@ -37,48 +84,84 @@ export default function HomeScreen() {
     </View>
   );
 
-  const renderPost = ({ item }: any) => (
-    <View style={styles.postContainer}>
-      {/* Header */}
-      <View style={styles.postHeader}>
-        <View style={styles.postUser}>
-          <Image
-            source={{ uri: 'https://i.imgur.com/2nCt3Sb.jpg' }}
-            style={styles.userAvatar}
-          />
-          <View>
-            <Text style={styles.username}>{item.user}</Text>
-            <Text style={styles.location}>{item.location}</Text>
+  const renderPost = ({ item }: { item: Post }) => {
+    const firstMedia = item.mediaItems && item.mediaItems.length > 0 ? item.mediaItems[0] : null;
+    const hasReaction = !!item.currentUserReaction;
+    const isReacting = reactingPostId === item.id;
+
+    return (
+      <View style={styles.postContainer}>
+        {/* Header */}
+        <View style={styles.postHeader}>
+          <View style={styles.postUser}>
+            <Image
+              source={{ uri: item.user.avatarUrl || 'https://via.placeholder.com/50' }}
+              style={styles.userAvatar}
+            />
+            <View>
+              <Text style={styles.username}>{item.user.username}</Text>
+              {item.user.fullName && <Text style={styles.location}>{item.user.fullName}</Text>}
+            </View>
           </View>
+          <Feather name="more-vertical" size={20} />
         </View>
-        <Feather name="more-vertical" size={20} />
-      </View>
 
-      {/* Hình ảnh bài đăng */}
-      <Image source={{ uri: item.image }} style={styles.postImage} />
+        {/* Hình ảnh bài đăng */}
+        {firstMedia && (
+          <Image source={{ uri: firstMedia.mediaUrl }} style={styles.postImage} />
+        )}
 
-      {/* Action icons */}
-      <View style={styles.actionRow}>
-        <View style={styles.leftActions}>
-          <FontAwesome name="heart-o" size={24} style={styles.icon} />
-          <Feather name="message-circle" size={24} style={styles.icon} />
-          <Feather name="send" size={24} />
+        {/* Action icons */}
+        <View style={styles.actionRow}>
+          <View style={styles.leftActions}>
+            <TouchableOpacity
+              onPress={() => handleReaction(item.id, item.currentUserReaction)}
+              disabled={isReacting}
+            >
+              {hasReaction ? (
+                <FontAwesome name="heart" size={24} color="#FF3040" style={styles.icon} />
+              ) : (
+                <FontAwesome name="heart-o" size={24} style={styles.icon} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/post/postDetail', params: { postId: item.id.toString() } })}
+            >
+              <Feather name="message-circle" size={24} style={styles.icon} />
+            </TouchableOpacity>
+            <Feather name="send" size={24} />
+          </View>
+          <Feather name="bookmark" size={24} />
         </View>
-        <Feather name="bookmark" size={24} />
+
+        {/* Likes */}
+        {item.reactionCount > 0 && (
+          <Text style={styles.likes}>
+            <Text style={styles.bold}>{item.reactionCount}</Text> lượt thích
+          </Text>
+        )}
+
+        {/* Caption */}
+        {item.caption && (
+          <Text style={styles.caption}>
+            <Text style={styles.bold}>{item.user.username}</Text> {item.caption}
+          </Text>
+        )}
+
+        {/* Comments count */}
+        {item.commentCount > 0 && (
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/post/postDetail', params: { postId: item.id.toString() } })}
+          >
+            <Text style={styles.viewComments}>Xem tất cả {item.commentCount} bình luận</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Time */}
+        <Text style={styles.time}>{formatTimeAgo(item.createdAt)}</Text>
       </View>
-
-      {/* Likes */}
-      <Text style={styles.likes}>
-        Liked by <Text style={styles.bold}>craig_love</Text> and{' '}
-        <Text style={styles.bold}>{item.likes} others</Text>
-      </Text>
-
-      {/* Caption */}
-      <Text style={styles.caption}>
-        <Text style={styles.bold}>{item.user}</Text> {item.caption}
-      </Text>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -103,12 +186,25 @@ export default function HomeScreen() {
       </View>
 
       {/* Posts */}
-      <FlatList
-        data={posts}
-        renderItem={renderPost}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#9333ff" />
+        </View>
+      ) : (
+        <FlatList
+          data={posts}
+          renderItem={renderPost}
+          keyExtractor={(item) => item.id.toString()}
+          showsVerticalScrollIndicator={false}
+          refreshing={loading}
+          onRefresh={loadFeed}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Chưa có bài viết nào</Text>
+            </View>
+          )}
+        />
+      )}
     </View>
   );
 }
@@ -183,4 +279,32 @@ const styles = StyleSheet.create({
   likes: { paddingHorizontal: 12, fontWeight: '500', marginBottom: 5 },
   caption: { paddingHorizontal: 12, marginBottom: 10 },
   bold: { fontWeight: 'bold' },
+  viewComments: {
+    paddingHorizontal: 12,
+    color: '#666',
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  time: {
+    paddingHorizontal: 12,
+    color: '#999',
+    fontSize: 12,
+    marginBottom: 10,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    color: '#666',
+    fontSize: 16,
+  },
 });
