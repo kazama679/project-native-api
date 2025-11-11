@@ -56,3 +56,30 @@ export async function searchUsers(keyword: string): Promise<ApiResponse<User[]>>
   return res;
 }
 
+export type AvatarUploadResponse = {
+  avatarUrl: string;
+  publicId?: string;
+};
+
+export async function uploadAvatar(imageUri: string): Promise<ApiResponse<AvatarUploadResponse>> {
+  // Tạo FormData để upload
+  const formData = new FormData();
+  
+  // Lấy tên file từ URI hoặc tạo tên mới
+  const filename = imageUri.split('/').pop() || `avatar_${Date.now()}.jpg`;
+  const match = /\.(\w+)$/.exec(filename);
+  const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+  formData.append('file', {
+    uri: imageUri,
+    name: filename,
+    type: type,
+  } as any);
+
+  const res = await api.post('/api/v1/users/me/avatar', formData) as any;
+  if (res?.response && !res?.data) {
+    res.data = res.response;
+  }
+  return res;
+}
+

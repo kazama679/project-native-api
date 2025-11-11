@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { router } from 'expo-router';
-import { login as loginApi } from '../../services/auth';
+import { login as loginApi } from '@/services/auth';
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
@@ -23,7 +23,7 @@ export default function LoginScreen() {
       const token = res?.response?.token || res?.data?.token || res?.token || res?.data?.data?.token;
       
       if (token) {
-        router.replace('/');
+        router.replace('/(tabs)/home');
       } else {
         console.error('Token không tìm thấy trong response:', res);
         Alert.alert('Lỗi', `Không nhận được token. Response: ${JSON.stringify(res)}`);

@@ -4,13 +4,20 @@ import com.example.project.model.dto.request.LoginRequest;
 import com.example.project.model.dto.request.RegisterRequest;
 import com.example.project.model.dto.request.UserUpdateRequest;
 import com.example.project.model.dto.response.APIResponse;
+import com.example.project.model.dto.response.AvatarUploadResponse;
 import com.example.project.model.dto.response.LoginResponse;
 import com.example.project.model.entity.User;
+import com.example.project.service.CloudinaryService;
 import com.example.project.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -18,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final CloudinaryService cloudinaryService;
 
     @PostMapping("/register")
     public ResponseEntity<APIResponse<User>> register(@RequestBody RegisterRequest request) {
@@ -95,5 +103,34 @@ public class UserController {
         return ResponseEntity.ok(
                 new APIResponse<>("Tìm kiếm thành công", users, true, 200)
         );
+    }
+
+    @PostMapping(value = "/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<APIResponse<AvatarUploadResponse>> uploadAvatar(
+            @AuthenticationPrincipal User currentUser,
+            @RequestPart("file") MultipartFile file
+    ) {
+        try {
+            // Upload ảnh lên Cloudinary
+            String avatarUrl = cloudinaryService.uploadImage(file, "avatars");
+            
+            // Cập nhật avatarUrl cho user
+            UserUpdateRequest updateRequest = new UserUpdateRequest();
+            updateRequest.setAvatarUrl(avatarUrl);
+            userService.updateProfile(currentUser.getId(), updateRequest);
+            
+            AvatarUploadResponse response = AvatarUploadResponse.builder()
+                    .avatarUrl(avatarUrl)
+                    .build();
+            
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new APIResponse<>("Upload ảnh đại diện thành công", response, true, 201));
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new APIResponse<>("Lỗi khi upload ảnh: " + e.getMessage(), null, false, 500));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>("Lỗi: " + e.getMessage(), null, false, 400));
+        }
     }
 }

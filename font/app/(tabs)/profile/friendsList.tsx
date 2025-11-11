@@ -16,7 +16,7 @@ import {
   getFriendsList,
   unfriend,
   Friendship,
-} from '../../services/friendship';
+} from '@/services/friendship';
 
 type FriendItem = {
   id: number;

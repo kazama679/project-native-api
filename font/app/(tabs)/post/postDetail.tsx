@@ -1,9 +1,9 @@
-import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { getPostById, Post, reactToPost, removeReaction, ReactionType } from "../../services/post";
-import { FontAwesome } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { deletePost, getPostById, Post, ReactionType, reactToPost, removeReaction } from "@/services/post";
+import { getProfile, User } from "@/services/user";
 
 export default function PostDetail() {
   const router = useRouter();
@@ -11,10 +11,14 @@ export default function PostDetail() {
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(false);
   const [reacting, setReacting] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (postId) {
       loadPost();
+      loadCurrentUser();
     }
   }, [postId]);
 
@@ -30,6 +34,17 @@ export default function PostDetail() {
       console.error('Error loading post:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCurrentUser = async () => {
+    try {
+      const res = await getProfile();
+      if (res?.data) {
+        setCurrentUser(res.data);
+      }
+    } catch (e) {
+      console.error('Error loading current user:', e);
     }
   };
 
@@ -50,6 +65,39 @@ export default function PostDetail() {
       setReacting(false);
     }
   };
+
+  const handleDelete = async () => {
+    if (!post) return;
+    
+    Alert.alert(
+      'Xóa bài viết',
+      'Bạn có chắc chắn muốn xóa bài viết này?',
+      [
+        { text: 'Hủy', style: 'cancel', onPress: () => setMenuVisible(false) },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeleting(true);
+              await deletePost(post.id);
+              Alert.alert('Thành công', 'Đã xóa bài viết', [
+                { text: 'OK', onPress: () => router.back() }
+              ]);
+            } catch (e: any) {
+              console.error('Error deleting post:', e);
+              Alert.alert('Lỗi', e?.message || 'Không thể xóa bài viết');
+            } finally {
+              setDeleting(false);
+              setMenuVisible(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const isOwnPost = post && currentUser && post.user.id === currentUser.id;
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -106,7 +154,11 @@ export default function PostDetail() {
           />
           <Text style={styles.username}>{post.user.username}</Text>
         </View>
-        <Ionicons name="ellipsis-horizontal" size={22} color="#333" />
+        {isOwnPost && (
+          <TouchableOpacity onPress={() => setMenuVisible(true)}>
+            <Ionicons name="ellipsis-horizontal" size={22} color="#333" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Image */}
@@ -167,6 +219,40 @@ export default function PostDetail() {
 
       {/* Time */}
       <Text style={styles.time}>{formatTimeAgo(post.createdAt)}</Text>
+
+      {/* Delete Menu Modal */}
+      <Modal
+        visible={menuVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setMenuVisible(false)}
+        >
+          <View style={styles.menuContainer}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <ActivityIndicator size="small" color="#FF3040" />
+              ) : (
+                <Text style={styles.deleteText}>Xóa bài viết</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.menuItem, styles.cancelItem]}
+              onPress={() => setMenuVisible(false)}
+            >
+              <Text style={styles.cancelText}>Hủy</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 }
@@ -245,5 +331,37 @@ const styles = StyleSheet.create({
   loadingContainer: {
     justifyContent: "center",
     alignItems: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  menuContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    width: "80%",
+    maxWidth: 300,
+    overflow: "hidden",
+  },
+  menuItem: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#eee",
+    alignItems: "center",
+  },
+  cancelItem: {
+    borderBottomWidth: 0,
+  },
+  deleteText: {
+    color: "#FF3040",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  cancelText: {
+    color: "#000",
+    fontSize: 16,
   },
 });

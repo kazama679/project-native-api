@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { register as registerApi } from '../../services/auth';
+import { register as registerApi } from '@/services/auth';
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');

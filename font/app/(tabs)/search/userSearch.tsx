@@ -11,8 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { searchUsers } from '../../services/user';
-import { User } from '../../services/user';
+import { searchUsers } from '@/services/user';
+import { User } from '@/services/user';
 
 export default function UserSearchScreen() {
   const [keyword, setKeyword] = useState('');

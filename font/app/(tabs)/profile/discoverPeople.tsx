@@ -19,9 +19,9 @@ import {
   getIncomingRequests,
   getOutgoingRequests,
   Friendship
-} from "../../services/friendship";
-import { getToken } from "../../services/auth";
-import { api } from "../../services/api";
+} from "@/services/friendship";
+import { getToken } from "@/services/auth";
+import { api } from "@/services/api";
 
 type RequestItem = {
   id: string;

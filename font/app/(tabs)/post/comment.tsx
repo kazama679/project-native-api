@@ -13,7 +13,7 @@ import {
     View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { getCommentsByPostId, createComment, Comment } from "../../services/post";
+import { getCommentsByPostId, createComment, Comment } from "@/services/post";
 
 export default function CommentScreen() {
   const router = useRouter();

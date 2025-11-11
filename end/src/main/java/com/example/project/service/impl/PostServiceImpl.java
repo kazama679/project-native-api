@@ -222,6 +222,21 @@ public class PostServiceImpl implements PostService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public void deletePost(int postId, int userId) {
+        Post post = postRepository.findByIdAndIsDeletedFalse(postId)
+                .orElseThrow(() -> new NoSuchElementException("Không tìm thấy bài viết"));
+
+        // Kiểm tra quyền: chỉ chủ bài viết mới được xóa
+        if (post.getUser().getId() != userId) {
+            throw new IllegalStateException("Bạn không có quyền xóa bài viết này");
+        }
+
+        // Soft delete: đánh dấu isDeleted = true
+        post.setIsDeleted(true);
+        postRepository.save(post);
+    }
+
     private boolean canViewPost(Post post, User currentUser) {
         // User can always view their own posts
         if (post.getUser().getId()==(currentUser.getId())) {

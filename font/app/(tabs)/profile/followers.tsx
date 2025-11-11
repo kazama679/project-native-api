@@ -1,27 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { getFollowing } from '../../services/friendship';
-import { User } from '../../services/user';
+import { getFollowers } from '@/services/friendship';
+import { User } from '@/services/user';
 
-export default function FollowingScreen() {
+export default function FollowersScreen() {
   const router = useRouter();
-  const [following, setFollowing] = useState<User[]>([]);
+  const [followers, setFollowers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadFollowing();
+    loadFollowers();
   }, []);
 
-  const loadFollowing = async () => {
+  const loadFollowers = async () => {
     try {
       setLoading(true);
-      const res = await getFollowing();
+      const res = await getFollowers();
       if (res?.data) {
-        setFollowing(res.data);
+        setFollowers(res.data);
       }
     } catch (e) {
-      console.error('Error loading following:', e);
+      console.error('Error loading followers:', e);
     } finally {
       setLoading(false);
     }
@@ -49,7 +49,7 @@ export default function FollowingScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={{ fontSize: 16, color: '#9333ff' }}>←</Text>
         </TouchableOpacity>
-        <Text style={{ fontSize: 18, fontWeight: '700', marginLeft: 12 }}>Đang theo dõi</Text>
+        <Text style={{ fontSize: 18, fontWeight: '700', marginLeft: 12 }}>Người theo dõi</Text>
       </View>
       {loading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -57,13 +57,13 @@ export default function FollowingScreen() {
         </View>
       ) : (
         <FlatList
-          data={following}
+          data={followers}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
           ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: '#f0f0f0', marginLeft: 76 }} />}
           ListEmptyComponent={() => (
             <View style={{ alignItems: 'center', marginTop: 40 }}>
-              <Text>Bạn chưa theo dõi ai.</Text>
+              <Text>Chưa có ai theo dõi bạn.</Text>
             </View>
           )}
         />

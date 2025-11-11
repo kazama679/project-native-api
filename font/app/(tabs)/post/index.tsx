@@ -1,12 +1,23 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { ImageBackground, StyleSheet, Text, TouchableOpacity, View, Alert, Platform } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ImageBackground, StyleSheet, Text, TouchableOpacity, View, Alert, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function Post() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [cameraType, setCameraType] = useState<ImagePicker.CameraType>(ImagePicker.CameraType.back);
+
+  const navigateToTitlePost = useCallback(
+    (imageUri: string) => {
+      router.push({
+        pathname: '/(tabs)/post/titlePost',
+        params: { imageUri },
+      });
+    },
+    [router]
+  );
 
   const handleUp = async () => {
     try {
@@ -17,6 +28,7 @@ export default function Post() {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
           Alert.alert('Cần quyền truy cập', 'Ứng dụng cần quyền truy cập thư viện ảnh để chọn ảnh.');
+          setLoading(false);
           return;
         }
       }
@@ -31,11 +43,7 @@ export default function Post() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const imageUri = result.assets[0].uri;
-        // Navigate to titlePost with imageUri
-        router.push({
-          pathname: '/post/titlePost',
-          params: { imageUri },
-        });
+        navigateToTitlePost(imageUri);
       }
     } catch (error: any) {
       console.error('Error picking image:', error);
@@ -44,6 +52,46 @@ export default function Post() {
       setLoading(false);
     }
   };
+
+  const handleCapture = async () => {
+    try {
+      setLoading(true);
+
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Cần quyền truy cập', 'Ứng dụng cần quyền truy cập camera để chụp ảnh.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+        cameraType,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const imageUri = result.assets[0].uri;
+        navigateToTitlePost(imageUri);
+      }
+    } catch (error: any) {
+      console.error('Error capturing image:', error);
+      Alert.alert('Lỗi', 'Không thể chụp ảnh. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleCamera = useCallback(() => {
+    setCameraType((prev) =>
+      prev === ImagePicker.CameraType.back ? ImagePicker.CameraType.front : ImagePicker.CameraType.back
+    );
+  }, []);
+
   return (
     <ImageBackground
       source={{ uri: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' }}
@@ -58,20 +106,29 @@ export default function Post() {
           {/* icon bên trái: gallery */}
           <TouchableOpacity onPress={handleUp} disabled={loading}>
             {loading ? (
-              <Text style={{ color: '#fff', fontSize: 20 }}>...</Text>
+              <ActivityIndicator color="#fff" />
             ) : (
               <Ionicons name="images-outline" size={28} color="#fff" />
             )}
           </TouchableOpacity>
 
           {/* nút chụp ảnh */}
-          <View style={styles.captureButton}>
-            <View style={styles.innerCircle} />
-          </View>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[styles.captureButton, loading && styles.captureButtonDisabled]}
+            onPress={handleCapture}
+            disabled={loading}
+          >
+            <View style={[styles.innerCircle, loading && styles.innerCircleDisabled]} />
+          </TouchableOpacity>
 
           {/* icon bên phải: đổi camera */}
-          <TouchableOpacity>
-            <MaterialCommunityIcons name="camera-switch-outline" size={32} color="#fff" />
+          <TouchableOpacity onPress={handleToggleCamera} disabled={loading}>
+            <MaterialCommunityIcons
+              name="camera-switch-outline"
+              size={32}
+              color={loading ? 'rgba(255,255,255,0.5)' : '#fff'}
+            />
           </TouchableOpacity>
         </View>
 
@@ -120,11 +177,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  captureButtonDisabled: {
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
   innerCircle: {
     width: 65,
     height: 65,
     borderRadius: 35,
     backgroundColor: '#fff',
+  },
+  innerCircleDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.6)',
   },
   modeBar: {
     flexDirection: 'row',

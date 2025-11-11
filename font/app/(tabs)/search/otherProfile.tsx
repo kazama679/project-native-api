@@ -1,6 +1,6 @@
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,26 +14,16 @@ import {
   View,
 } from 'react-native';
 import {
-  sendFriendRequest,
+  Friendship,
   getFriendsList,
   getIncomingRequests,
   getOutgoingRequests,
-  Friendship,
-} from '../../services/friendship';
-import { getUserById, User } from '../../services/user';
-import { getProfile } from '../../services/user';
+  sendFriendRequest,
+} from '@/services/friendship';
+import { getPostsByUserId, Post } from '@/services/post';
+import { getProfile, getUserById, User } from '@/services/user';
 
-const posts = [
-  { id: '1', image: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-  { id: '2', image: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-  { id: '3', image: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-  { id: '4', image: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-  { id: '5', image: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-  { id: '6', image: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-  { id: '7', image: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-  { id: '8', image: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-  { id: '9', image: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' },
-];
+const PLACEHOLDER_POST_IMAGE = 'https://via.placeholder.com/300';
 
 const numColumns = 3;
 const screenWidth = Dimensions.get('window').width;
@@ -52,13 +42,38 @@ export default function OtherProfile() {
   const [loading, setLoading] = useState(true);
   const [friendshipStatus, setFriendshipStatus] = useState<FriendshipStatus>('none');
   const [sendingRequest, setSendingRequest] = useState(false);
+  const [userPosts, setUserPosts] = useState<Post[]>([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [postsError, setPostsError] = useState<string | null>(null);
+  const postCount = userPosts.length;
+
+  const loadUserPosts = useCallback(async () => {
+    if (!userId) return;
+    try {
+      setPostsLoading(true);
+      setPostsError(null);
+      const response = await getPostsByUserId(userId);
+      if (response.success && response.data) {
+        setUserPosts(response.data);
+      } else {
+        setUserPosts([]);
+      }
+    } catch (error: any) {
+      console.error('Error loading user posts:', error);
+      setPostsError(error?.message || 'Không thể tải danh sách bài viết');
+      setUserPosts([]);
+    } finally {
+      setPostsLoading(false);
+    }
+  }, [userId]);
 
   useEffect(() => {
     if (userId) {
       loadUserProfile();
       loadCurrentUser();
+      loadUserPosts();
     }
-  }, [userId]);
+  }, [userId, loadUserPosts]);
 
   useEffect(() => {
     if (user && currentUser) {
@@ -160,6 +175,48 @@ export default function OtherProfile() {
     }
   };
 
+  const handleMessagePress = useCallback(() => {
+    if (!user) return;
+    router.push({
+      pathname: '/(tabs)/home/message',
+      params: {
+        partnerId: user.id?.toString() ?? '',
+        username: user.username ?? '',
+        fullName: user.fullName ?? '',
+      },
+    });
+  }, [router, user]);
+
+  const handleOpenPost = useCallback(
+    (postId: number) => {
+      router.push({
+        pathname: '/(tabs)/post/postDetail',
+        params: { postId: postId.toString() },
+      });
+    },
+    [router]
+  );
+
+  const renderPostItem = useCallback(
+    ({ item }: { item: Post }) => {
+      const thumbnail = item.mediaItems?.[0]?.mediaUrl;
+      const source = thumbnail
+        ? { uri: thumbnail }
+        : { uri: PLACEHOLDER_POST_IMAGE };
+
+      return (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => handleOpenPost(item.id)}
+          style={styles.postWrapper}
+        >
+          <Image source={source} style={styles.postImage} />
+        </TouchableOpacity>
+      );
+    },
+    [handleOpenPost]
+  );
+
   const getButtonText = () => {
     switch (friendshipStatus) {
       case 'accepted':
@@ -218,7 +275,7 @@ export default function OtherProfile() {
         />
         <View style={styles.stats}>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statNumber}>{postCount}</Text>
             <Text style={styles.statLabel}>bài viết</Text>
           </View>
           <View style={styles.statItem}>
@@ -277,7 +334,7 @@ export default function OtherProfile() {
               </Text>
             )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity style={styles.button} onPress={handleMessagePress}>
             <Text style={styles.buttonText}>Nhắn tin</Text>
           </TouchableOpacity>
         </View>
@@ -309,15 +366,27 @@ export default function OtherProfile() {
       </View>
 
       {/* Posts Grid */}
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => item.id}
-        numColumns={numColumns}
-        scrollEnabled={false}
-        renderItem={({ item }) => (
-          <Image source={{ uri: item.image }} style={styles.postImage} />
-        )}
-      />
+      {postsLoading ? (
+        <View style={styles.postsLoading}>
+          <ActivityIndicator size="large" color="#000" />
+        </View>
+      ) : (
+        <FlatList
+          data={userPosts}
+          keyExtractor={(item) => item.id.toString()}
+          numColumns={numColumns}
+          scrollEnabled={false}
+          renderItem={renderPostItem}
+          contentContainerStyle={
+            userPosts.length === 0 ? styles.emptyPostsContainer : undefined
+          }
+          ListEmptyComponent={
+            <Text style={styles.emptyPostsText}>
+              {postsError ? postsError : 'Người dùng chưa có bài viết nào.'}
+            </Text>
+          }
+        />
+      )}
     </ScrollView>
   );
 }
@@ -462,5 +531,25 @@ const styles = StyleSheet.create({
   postImage: {
     width: imageSize,
     height: imageSize,
+  },
+  postWrapper: {
+    flex: 1,
+    margin: 1,
+    width: imageSize,
+    maxWidth: imageSize,
+  },
+  postsLoading: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  emptyPostsContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    width: '100%',
+  },
+  emptyPostsText: {
+    color: '#666',
+    fontSize: 14,
+    textAlign: 'center',
   },
 });

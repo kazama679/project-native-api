@@ -98,6 +98,25 @@ public class PostController {
         );
     }
 
+    // Xóa bài viết - Phải đặt trước các endpoint con như /{postId}/reactions
+    @DeleteMapping(value = "/{postId}")
+    public ResponseEntity<APIResponse<String>> deletePost(
+            @PathVariable("postId") int postId,
+            @AuthenticationPrincipal com.example.project.model.entity.User currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(new APIResponse<>(
+                    "Chưa đăng nhập",
+                    null,
+                    false,
+                    401
+            ));
+        }
+        postService.deletePost(postId, currentUser.getId());
+        return ResponseEntity.ok(
+                new APIResponse<>("Xóa bài viết thành công", "Đã xóa bài viết", true, 200)
+        );
+    }
+
     // Cập nhật chế độ xem bài viết
     @PutMapping("/{postId}/privacy")
     public ResponseEntity<APIResponse<PostResponse>> updatePostPrivacy(

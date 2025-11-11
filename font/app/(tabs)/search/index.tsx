@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { searchUsers, User } from '../../services/user';
+import { searchUsers, User } from '@/services/user';
 
 const reelsData = [
   { id: '1', thumbnail: 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg', views: '3.9 triệu' },
@@ -33,7 +33,7 @@ const TABS = ['Tài khoản', 'Reels', 'Âm thanh', 'Thẻ'];
 
 export default function SearchAccountScreen() {
   const [selectedTab, setSelectedTab] = useState('Tài khoản');
-  const [searchKeyword, setSearchKeyword] = useState('quang');
+  const [searchKeyword, setSearchKeyword] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);

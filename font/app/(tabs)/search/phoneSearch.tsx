@@ -10,8 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { searchUserByPhone, sendFriendRequest } from '../../services/friendship';
-import { User } from '../../services/user';
+import { searchUserByPhone, sendFriendRequest } from '@/services/friendship';
+import { User } from '@/services/user';
 
 export default function PhoneSearchScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');

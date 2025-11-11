@@ -21,5 +21,6 @@ public interface PostService {
     void removeReaction(int postId, int userId);
     CommentResponse createComment(int postId, CreateCommentRequest request, int userId);
     List<CommentResponse> getCommentsByPostId(int postId);
+    void deletePost(int postId, int userId);
 }
 

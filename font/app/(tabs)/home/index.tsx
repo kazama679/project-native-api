@@ -1,7 +1,7 @@
 import { getFeedPosts, Post, ReactionType, reactToPost, removeReaction } from '@/services/post';
 import { Feather, FontAwesome } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { getConversations } from '@/services/message';
 
 const stories = [
   { id: '1', name: 'Your Story', image: 'https://i.imgur.com/2nCt3Sb.jpg' },
@@ -24,10 +25,19 @@ export default function HomeScreen() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
   const [reactingPostId, setReactingPostId] = useState<number | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     loadFeed();
+    loadUnreadCount();
   }, []);
+
+  // Refresh unread count khi quay lại màn hình
+  useFocusEffect(
+    useCallback(() => {
+      loadUnreadCount();
+    }, [])
+  );
 
   const loadFeed = async () => {
     try {
@@ -40,6 +50,21 @@ export default function HomeScreen() {
       console.error('Error loading feed:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadUnreadCount = async () => {
+    try {
+      const res = await getConversations();
+      if (res?.data) {
+        // Tính tổng số tin nhắn chưa đọc từ tất cả conversations
+        const totalUnread = res.data.reduce((sum, conversation) => {
+          return sum + (conversation.unreadCount || 0);
+        }, 0);
+        setUnreadCount(totalUnread);
+      }
+    } catch (e) {
+      console.error('Error loading unread count:', e);
     }
   };
 
@@ -97,6 +122,8 @@ export default function HomeScreen() {
             <Image
               source={{ uri: item.user.avatarUrl || 'https://via.placeholder.com/50' }}
               style={styles.userAvatar}
+              height={30}
+              width={30}
             />
             <View>
               <Text style={styles.username}>{item.user.username}</Text>
@@ -170,7 +197,19 @@ export default function HomeScreen() {
         <Text style={styles.logo}>Instagram</Text>
         <View style={styles.headerIcons}>
           <Feather name="heart" size={24} style={styles.headerIcon} />
-          <Feather name="message-circle" size={24} />
+          <TouchableOpacity 
+            onPress={() => router.push("/home/messages")}
+            style={styles.messageIconContainer}
+          >
+            <Feather name="message-circle" size={24} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -225,8 +264,30 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontFamily: 'Billabong', // font giống Instagram
   },
-  headerIcons: { flexDirection: 'row' },
+  headerIcons: { flexDirection: 'row', alignItems: 'center' },
   headerIcon: { marginRight: 15 },
+  messageIconContainer: {
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FF3040',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
   storiesContainer: {
     borderBottomWidth: 0.5,
     borderBottomColor: '#eee',

@@ -1,12 +1,14 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { getProfile, updateProfile, User } from '../../services/user';
+import { ActivityIndicator, Alert, Image, ScrollView, Text, TextInput, TouchableOpacity, View, Platform } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { getProfile, updateProfile, uploadAvatar, User } from '@/services/user';
 
 export default function EditProfileScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [profile, setProfile] = useState({
     fullName: '',
     username: '',
@@ -47,6 +49,57 @@ export default function EditProfileScreen() {
 
   const handleChange = (key: string, value: string) => {
     setProfile({ ...profile, [key]: value });
+  };
+
+  const handleChangeAvatar = async () => {
+    try {
+      // Yêu cầu quyền truy cập thư viện ảnh
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Cần quyền truy cập', 'Ứng dụng cần quyền truy cập thư viện ảnh để chọn ảnh đại diện.');
+          return;
+        }
+      }
+
+      // Mở image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1], // Ảnh đại diện thường là hình vuông
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const imageUri = result.assets[0].uri;
+
+      // Upload ảnh lên backend (backend sẽ upload lên Cloudinary)
+      setUploadingAvatar(true);
+      try {
+        const res = await uploadAvatar(imageUri);
+        
+        if (res?.data?.avatarUrl) {
+          // Cập nhật avatarUrl trong state
+          setProfile({ ...profile, avatarUrl: res.data.avatarUrl });
+          
+          Alert.alert('Thành công', 'Đã thay đổi ảnh đại diện thành công');
+        } else {
+          throw new Error('Không nhận được URL ảnh từ server');
+        }
+      } catch (uploadError: any) {
+        console.error('Error uploading avatar:', uploadError);
+        Alert.alert('Lỗi', uploadError?.message || 'Không thể upload ảnh. Vui lòng thử lại.');
+      } finally {
+        setUploadingAvatar(false);
+      }
+    } catch (error: any) {
+      console.error('Error picking image:', error);
+      Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
+      setUploadingAvatar(false);
+    }
   };
 
   const handleSave = async () => {
@@ -100,14 +153,26 @@ export default function EditProfileScreen() {
 
       {/* Avatar */}
       <View style={{ alignItems: 'center', marginTop: 10 }}>
-        <Image
-          source={{ 
-            uri: profile.avatarUrl || 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' 
-          }}
-          style={{ width: 100, height: 100, borderRadius: 50 }}
-        />
-        <TouchableOpacity>
-          <Text style={{ color: '#0095f6', marginTop: 8 }}>Thay đổi ảnh đại diện</Text>
+        {uploadingAvatar ? (
+          <View style={{ width: 100, height: 100, borderRadius: 50, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f0f0' }}>
+            <ActivityIndicator size="large" color="#0095f6" />
+          </View>
+        ) : (
+          <Image
+            source={{ 
+              uri: profile.avatarUrl || 'https://photo.znews.vn/w660/Uploaded/mdf_eioxrd/2021_07_06/2.jpg' 
+            }}
+            style={{ width: 100, height: 100, borderRadius: 50 }}
+          />
+        )}
+        <TouchableOpacity 
+          onPress={handleChangeAvatar} 
+          disabled={uploadingAvatar}
+          style={{ opacity: uploadingAvatar ? 0.5 : 1 }}
+        >
+          <Text style={{ color: '#0095f6', marginTop: 8 }}>
+            {uploadingAvatar ? 'Đang tải ảnh...' : 'Thay đổi ảnh đại diện'}
+          </Text>
         </TouchableOpacity>
       </View>
 

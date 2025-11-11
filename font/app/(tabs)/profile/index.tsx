@@ -2,9 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import React, { useEffect, useState, useCallback } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { getProfile, User } from '../../services/user';
-import { getFollowers, getFollowing } from '../../services/friendship';
-import { getPostsByUserId, Post } from '../../services/post';
+import { getProfile, User } from '@/services/user';
+import { getFollowers, getFollowing } from '@/services/friendship';
+import { getPostsByUserId, Post } from '@/services/post';
 import ProfileMenu from './profileMenu';
 
 const numColumns = 3;

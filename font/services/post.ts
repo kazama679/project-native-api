@@ -174,3 +174,9 @@ export async function getCommentsByPostId(postId: number): Promise<ApiResponse<C
   return normalizeResponse<Comment[]>(res);
 }
 
+// Xóa bài viết
+export async function deletePost(postId: number): Promise<ApiResponse<string>> {
+  const res = await api.delete(`/api/v1/posts/${postId}`);
+  return normalizeResponse<string>(res);
+}
+

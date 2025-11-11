@@ -1,17 +1,23 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.36.103:8080';
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.235:8080';
 
 const TOKEN_KEY = 'auth.token';
 
 async function request(path: string, options: RequestInit = {}) {
   const url = `${API_BASE_URL}${path}`;
   const token = await AsyncStorage.getItem(TOKEN_KEY);
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(options.headers || {}),
-  };
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+
+  const headers = new Headers(options.headers as HeadersInit | undefined);
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  if (!isFormData && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
 
   let response: Response;
   try {
@@ -50,10 +56,20 @@ async function request(path: string, options: RequestInit = {}) {
 
 export const api = {
   get: (path: string) => request(path, { method: 'GET' }),
-  post: (path: string, body?: unknown) =>
-    request(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
-  put: (path: string, body?: unknown) =>
-    request(path, { method: 'PUT', body: body ? JSON.stringify(body) : undefined }),
+  post: (path: string, body?: unknown) => {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    return request(path, {
+      method: 'POST',
+      body: isFormData ? (body as BodyInit) : body ? JSON.stringify(body) : undefined,
+    });
+  },
+  put: (path: string, body?: unknown) => {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    return request(path, {
+      method: 'PUT',
+      body: isFormData ? (body as BodyInit) : body ? JSON.stringify(body) : undefined,
+    });
+  },
   delete: (path: string) => request(path, { method: 'DELETE' }),
 };
 

@@ -1,13 +1,36 @@
-import { FontAwesome, Ionicons } from '@expo/vector-icons';
+import { Feather, FontAwesome, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Animated, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, View, Alert, ActivityIndicator } from 'react-native';
+import { logout as logoutService } from '@/services/auth';
 
 const { width } = Dimensions.get('window');
 
-export default function ProfileMenu({ visible, onClose }) {
+type ProfileMenuProps = {
+  visible: boolean;
+  onClose: () => void;
+};
+
+export default function ProfileMenu({ visible, onClose }: ProfileMenuProps) {
   const slideAnim = React.useRef(new Animated.Value(width)).current;
-const router = useRouter();
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = React.useState(false);
+
+  const handleLogout = React.useCallback(async () => {
+    if (loggingOut) return;
+    try {
+      setLoggingOut(true);
+      await logoutService();
+      onClose();
+      router.replace('/auth/login');
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      Alert.alert('Đăng xuất thất bại', error?.message || 'Vui lòng thử lại');
+    } finally {
+      setLoggingOut(false);
+    }
+  }, [loggingOut, onClose, router]);
+
   React.useEffect(() => {
     if (visible) {
       Animated.timing(slideAnim, {
@@ -39,7 +62,7 @@ const router = useRouter();
               { icon: 'time-outline', label: 'Archive' },
               { icon: 'analytics-outline', label: 'Your Activity' },
               { icon: 'qr-code-outline', label: 'Nametag' },
-              { icon: 'bookmark-outline', label: 'Saved' },
+              { icon: 'bookmark-outline', label: 'Saved' }
             ].map((item, index) => (
               <TouchableOpacity key={index} style={styles.menuItem} >
                 <Ionicons name={item.icon} size={22} color="#000" />
@@ -66,6 +89,11 @@ const router = useRouter();
             <TouchableOpacity style={styles.menuItem}>
               <FontAwesome name="facebook-square" size={22} color="#1877F2" />
               <Text style={styles.menuText}>Open Facebook</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={handleLogout} disabled={loggingOut}>
+              <Feather name="log-in" size={24} color={loggingOut ? '#999' : '#000'} />
+              <Text style={styles.menuText}>{loggingOut ? 'Đang đăng xuất...' : 'Logout'}</Text>
+              {loggingOut ? <ActivityIndicator size="small" color="#000" style={styles.loadingIndicator} /> : null}
             </TouchableOpacity>
           </View>
 
@@ -111,6 +139,9 @@ const styles = StyleSheet.create({
   menuText: {
     fontSize: 16,
     marginLeft: 12,
+  },
+  loadingIndicator: {
+    marginLeft: 8,
   },
   setting: {
     borderTopWidth: 1,
